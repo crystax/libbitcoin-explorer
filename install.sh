@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-#  Copyright (c) 2014-2015 libbitcoin-explorer developers (see COPYING).
+#  Copyright (c) 2014-2016 libbitcoin-explorer developers (see COPYING).
 #
 #         GENERATED SOURCE CODE, DO NOT EDIT EXCEPT EXPERIMENTALLY
 #
@@ -17,6 +17,7 @@
 # --prefix=<absolute-path> Library install location (defaults to /usr/local).
 # --disable-shared         Disables shared library builds.
 # --disable-static         Disables static library builds.
+# --crystax-ndk            Path to Crystax NDK.
 #
 # Verified on Ubuntu 14.04, requires gcc-4.8 or newer.
 # Verified on OSX 10.10, using MacPorts and Homebrew repositories, requires
@@ -124,8 +125,27 @@ for OPTION in "$@"; do
         (--with-icu)       WITH_ICU="yes";;
         (--with-png)       WITH_PNG="yes";;
         (--with-qrencode)  WITH_QRENCODE="yes";;
+
+        # Crystax NDK
+        (--crystax-ndk=*)  NDK_DIR="${OPTION#*=}";;
     esac
 done
+
+# Setup Android build
+#------------------------------------------------------------------------------
+if [[ $NDK_DIR ]]; then
+    unset CC
+    unset CXX
+    unset BUILD_ICU
+    unset BUILD_PNG
+    unset BUILD_ZLIB
+    unset BUILD_BOOST
+    BUILD_QRENCODE="yes"
+    PREFIX="$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)/android"
+    # todo: handle crystax-ndk-abis option or add all abis here
+    NDK_ABIS="armeabi-v7a"
+    . ./install_android.sh
+fi
 
 # Normalize of static and shared options.
 #------------------------------------------------------------------------------
@@ -141,6 +161,7 @@ fi
 # Purge custom build options so they don't break configure.
 #------------------------------------------------------------------------------
 CONFIGURE_OPTIONS=("${CONFIGURE_OPTIONS[@]/--build-*/}")
+CONFIGURE_OPTIONS=("${CONFIGURE_OPTIONS[@]/--crystax-*/}")
 
 # Always set a prefix (required on OSX and for lib detection).
 #------------------------------------------------------------------------------
@@ -488,10 +509,15 @@ build_from_tarball()
     # Join generated and command line options.
     local CONFIGURATION=("${OPTIONS[@]}" "$@")
 
-    configure_options "${CONFIGURATION[@]}"
-    make_jobs $JOBS --silent
-    make install
-    configure_links
+    if [[ ($NDK_DIR) && ($ARCHIVE == $QRENCODE_ARCHIVE) ]]; then
+        local opts="${CONFIGURATION[@]}"
+        android_build_qrencode "$NDK_ABIS" "$opts"
+    else
+        configure_options "${CONFIGURATION[@]}"
+        make_jobs $JOBS --silent
+        make install
+        configure_links
+    fi
 
     # Enable shared only zlib build.
     if [[ $ARCHIVE == $ZLIB_ARCHIVE ]]; then
@@ -677,7 +703,12 @@ build_from_github()
 
     # Build the local repository clone.
     push_directory $REPO
-    make_current_directory $JOBS "${CONFIGURATION[@]}"
+    if [[ $NDK_DIR ]]; then
+        local opts="${CONFIGURATION[@]}"
+        android_make_current_directory "$NDK_ABIS" "$opts"
+    else
+        make_current_directory $JOBS "${CONFIGURATION[@]}"
+    fi
     pop_directory
 }
 
@@ -739,13 +770,16 @@ build_all()
     build_from_github libbitcoin libbitcoin-protocol master $PARALLEL ${BITCOIN_PROTOCOL_OPTIONS[@]} "$@"
     build_from_github libbitcoin libbitcoin-client master $PARALLEL ${BITCOIN_CLIENT_OPTIONS[@]} "$@"
     build_from_github libbitcoin libbitcoin-network master $PARALLEL ${BITCOIN_NETWORK_OPTIONS[@]} "$@"
+
+    exit
+    
     build_from_travis libbitcoin libbitcoin-explorer master $PARALLEL ${BITCOIN_EXPLORER_OPTIONS[@]} "$@"
 }
 
 
 # Build the primary library and all dependencies.
 #==============================================================================
-create_directory "$BUILD_DIR"
+#create_directory "$BUILD_DIR"
 push_directory "$BUILD_DIR"
 initialize_git
 time build_all "${CONFIGURE_OPTIONS[@]}"
