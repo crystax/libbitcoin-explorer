@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-ANDROID_GCC_VERSION=5
+ANDROID_GCC_VERSION=6
 NDK_ICU_VERSION=56.1
 NDK_BOOST_VERSION=1.61.0
 
@@ -86,7 +86,7 @@ android_cflags_for_abi()
     local abi=$1
     local api_level=$(android_api_level_for_abi $abi)
     local arch=$(android_arch_for_abi $abi)
-    local cflags="--sysroot=$NDK_DIR/platforms/android-$api_level/arch-$arch"
+    local cflags="--sysroot=$NDK_DIR/platforms/android-$api_level/arch-$arch -fPIE -pie"
 
     case $abi in
         armeabi-v7a)
@@ -214,12 +214,28 @@ android_build_qrencode()
 }
 
 
+# $1 -- abi
+boost_include_dir_for_abi()
+{
+    local abi=$1
+    #local dir=$NDK_DIR/sources/boost+icu/$NDK_BOOST_VERSION/include
+    local dir=$NDK_DIR/sources/boost/$NDK_BOOST_VERSION/include
+    echo $dir
+}
 
+# $1 -- abi
+boost_lib_dir_for_abi()
+{
+    local abi=$1
+    #local dir=$NDK_DIR/sources/boost+icu/$NDK_BOOST_VERSION/libs/$abi/gnu-$ANDROID_GCC_VERSION
+    local dir=$NDK_DIR/sources/boost/$NDK_BOOST_VERSION/libs/$abi/gnu-$ANDROID_GCC_VERSION
+    echo $dir
+}
 
 # no params
 ndk_includes()
 {
-    local includes="-I$NDK_DIR/source/icu/$NDK_ICU_VERSION/include -I$NDK_DIR/source/boost+icu/$NDK_BOOST_VERSION/include"
+    local includes="-I$NDK_DIR/sources/icu/$NDK_ICU_VERSION/include -I$(boost_include_dir_for_abi $abi)"
     echo $includes
 }
 
@@ -235,7 +251,7 @@ ndk_stl_includes_for_abi()
 # $1 -- abi
 ndk_lib_paths_for_abi()
 {
-    local libs="-L$NDK_DIR/source/icu/$NDK_ICU_VERSION/libs/$abi -L$NDK_DIR/source/boost+icu/$NDK_BOOST_VERSION/libs/$abi"
+    local libs="-L$NDK_DIR/sources/icu/$NDK_ICU_VERSION/libs/$abi -L$(boost_lib_dir_for_abi $abi)"
     echo $libs
 }
 
@@ -256,6 +272,7 @@ android_make_current_directory()
     local configure_options="$2 --with-pic"
     local src_dir=`pwd`
 
+    # todo: uncomment
     ./autogen.sh
     
     for abi in $ndk_abis; do
@@ -276,6 +293,8 @@ android_make_current_directory()
         export CXXFLAGS="$CFLAGS $(ndk_stl_includes_for_abi $abi)"
         export LDFLAGS="$(android_ldflags_for_abi $abi) $(ndk_lib_paths_for_abi $abi) $(ndk_stl_lib_path_for_abi $abi) -L$install_dir/lib"
         export PKG_CONFIG_PATH="$install_dir/lib/pkgconfig:$PKG_CONFIG_PATH"
+        export BOOST_CPPFLAGS="-I$(boost_include_dir_for_abi $abi)"
+        export BOOST_LDFLAGS="-L$(boost_lib_dir_for_abi $abi)"
         echo "Building for abi:  $abi"
         echo "configure options: $configure_options"
         echo "               CC:  $CC"
@@ -290,6 +309,8 @@ android_make_current_directory()
         echo "         CXXFLAGS:  $CXXFLAGS"
         echo "          LDFLAGS:  $LDFLAGS"
         echo "  PKG_CONFIG_PATH:  $PKG_CONFIG_PATH"
+        echo "   BOOST_CPPFLAGS:  $BOOST_CPPFLAGS"
+        echo "    BOOST_LDFLAGS:  $BOOST_LDFLAGS"
 	$src_dir/configure --prefix=$install_dir --host=$(android_target_for_abi $abi) $configure_options
 	#make -j $PARALLELISM V=1
 	make V=1 LIBS=-lgnustl_shared

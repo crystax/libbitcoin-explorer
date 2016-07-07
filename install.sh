@@ -696,6 +696,7 @@ build_from_github()
     display_message "Download $FORK/$BRANCH"
 
     # Clone the repository locally.
+    # todo: uncomment
     git clone --branch $BRANCH --single-branch "https://github.com/$FORK"
 
     # Join generated and command line options.
@@ -726,7 +727,14 @@ build_from_local()
     local CONFIGURATION=("${OPTIONS[@]}" "$@")
 
     # Build the current directory.
-    make_current_directory $JOBS "${CONFIGURATION[@]}"
+    if [[ $NDK_DIR ]]; then
+        push_directory ".."
+        pwd
+        local opts="${CONFIGURATION[@]}"
+        android_make_current_directory "$NDK_ABIS" "$opts"
+    else
+        make_current_directory $JOBS "${CONFIGURATION[@]}"
+    fi
 }
 
 # Because Travis alread has downloaded the primary repo.
@@ -761,6 +769,7 @@ build_all()
     build_from_tarball $ICU_URL $ICU_ARCHIVE gzip source $PARALLEL "$BUILD_ICU" "${ICU_OPTIONS[@]}" "$@"
     build_from_tarball $ZLIB_URL $ZLIB_ARCHIVE xz . $PARALLEL "$BUILD_ZLIB" "${ZLIB_OPTIONS[@]}" "$@"
     build_from_tarball $PNG_URL $PNG_ARCHIVE xz . $PARALLEL "$BUILD_PNG" "${PNG_OPTIONS[@]}" "$@"
+# todo: uncomment
     build_from_tarball $QRENCODE_URL $QRENCODE_ARCHIVE bzip2 . $PARALLEL "$BUILD_QRENCODE" "${QRENCODE_OPTIONS[@]}" "$@"
     build_from_tarball_boost $BOOST_URL $BOOST_ARCHIVE bzip2 . $PARALLEL "$BUILD_BOOST" "${BOOST_OPTIONS[@]}"
     build_from_github zeromq libzmq master $PARALLEL ${ZMQ_OPTIONS[@]} "$@"
@@ -770,16 +779,14 @@ build_all()
     build_from_github libbitcoin libbitcoin-protocol master $PARALLEL ${BITCOIN_PROTOCOL_OPTIONS[@]} "$@"
     build_from_github libbitcoin libbitcoin-client master $PARALLEL ${BITCOIN_CLIENT_OPTIONS[@]} "$@"
     build_from_github libbitcoin libbitcoin-network master $PARALLEL ${BITCOIN_NETWORK_OPTIONS[@]} "$@"
-
-    exit
-    
     build_from_travis libbitcoin libbitcoin-explorer master $PARALLEL ${BITCOIN_EXPLORER_OPTIONS[@]} "$@"
 }
 
 
 # Build the primary library and all dependencies.
 #==============================================================================
-#create_directory "$BUILD_DIR"
+# todo: uncomment
+create_directory "$BUILD_DIR"
 push_directory "$BUILD_DIR"
 initialize_git
 time build_all "${CONFIGURE_OPTIONS[@]}"
