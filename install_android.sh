@@ -4,6 +4,7 @@
 ANDROID_GCC_VERSION=6
 NDK_ICU_VERSION=56.1
 NDK_BOOST_VERSION=1.61.0
+NDK_DEFAULT_ABIS="armeabi-v7a x86 mips armeabi-v7a-hard arm64-v8a x86_64 mips64"
 
 
 # $1 -- error message
@@ -86,7 +87,7 @@ android_cflags_for_abi()
     local abi=$1
     local api_level=$(android_api_level_for_abi $abi)
     local arch=$(android_arch_for_abi $abi)
-    local cflags="--sysroot=$NDK_DIR/platforms/android-$api_level/arch-$arch -fPIE -pie"
+    local cflags="-g --sysroot=$NDK_DIR/platforms/android-$api_level/arch-$arch -fPIE -pie"
 
     case $abi in
         armeabi-v7a)
@@ -107,7 +108,7 @@ android_ldflags_for_abi()
     local ldflags="-L$NDK_DIR/sources/crystax/libs/$abi"
 
     case $abi in
-        armeabi-v7a*)
+        armeabi-v7a)
             ldflags="$ldflags -Wl,--fix-cortex-a8"
             ;;
         armeabi-v7a-hard)
@@ -235,7 +236,8 @@ boost_lib_dir_for_abi()
 # no params
 ndk_includes()
 {
-    local includes="-I$NDK_DIR/sources/icu/$NDK_ICU_VERSION/include -I$(boost_include_dir_for_abi $abi)"
+    # -I$NDK_DIR/sources/icu/$NDK_ICU_VERSION/include
+    local includes="-I$(boost_include_dir_for_abi $abi)"
     echo $includes
 }
 
@@ -251,7 +253,8 @@ ndk_stl_includes_for_abi()
 # $1 -- abi
 ndk_lib_paths_for_abi()
 {
-    local libs="-L$NDK_DIR/sources/icu/$NDK_ICU_VERSION/libs/$abi -L$(boost_lib_dir_for_abi $abi)"
+    # -L$NDK_DIR/sources/icu/$NDK_ICU_VERSION/libs/$abi
+    local libs="-L$(boost_lib_dir_for_abi $abi)"
     echo $libs
 }
 
@@ -316,5 +319,22 @@ android_make_current_directory()
 	make V=1 LIBS=-lgnustl_shared
 	make install
         cd $src_dir
+    done
+}
+
+android_copy_required_libs_for_abis()
+{
+    local boost_libs="chrono date_time filesystem iostreams locale program_options regex system thread"
+    
+    for abi in $NDK_ABIS; do
+        local crystax_subdir=$abi
+        if [[ ($abi == armeabi-v7a) || ($abi == armeabi-v7a-hard) ]]; then
+            crystax_subdir="$abi/thumb"
+        fi
+        for lib in $boost_libs; do
+            cp $NDK_DIR/sources/boost/$NDK_BOOST_VERSION/libs/$abi/gnu-$ANDROID_GCC_VERSION/libboost_${lib}.so $PREFIX/$abi/bin/
+        done
+        cp "$NDK_DIR/sources/cxx-stl/gnu-libstdc++/$ANDROID_GCC_VERSION/libs/$abi/libgnustl_shared.so" $PREFIX/$abi/bin/
+        cp "$NDK_DIR/sources/crystax/libs/$crystax_subdir/libcrystax.so" $PREFIX/$abi/bin/
     done
 }

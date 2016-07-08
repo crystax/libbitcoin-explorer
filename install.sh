@@ -18,6 +18,8 @@
 # --disable-shared         Disables shared library builds.
 # --disable-static         Disables static library builds.
 # --crystax-ndk            Path to Crystax NDK.
+# --crystax-abis           List of ABIs, separatred by commas (defaults to
+#                          NDK_DEFAULT_ABIS defined in install_android.sh).
 #
 # Verified on Ubuntu 14.04, requires gcc-4.8 or newer.
 # Verified on OSX 10.10, using MacPorts and Homebrew repositories, requires
@@ -128,6 +130,7 @@ for OPTION in "$@"; do
 
         # Crystax NDK
         (--crystax-ndk=*)  NDK_DIR="${OPTION#*=}";;
+        (--crystax-abis=*) NDK_ABIS="${OPTION#*=}";;
     esac
 done
 
@@ -142,9 +145,12 @@ if [[ $NDK_DIR ]]; then
     unset BUILD_BOOST
     BUILD_QRENCODE="yes"
     PREFIX="$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)/android"
-    # todo: handle crystax-ndk-abis option or add all abis here
-    NDK_ABIS="armeabi-v7a"
     . ./install_android.sh
+    if [[ $NDK_ABIS ]]; then
+        NDK_ABIS=`echo "$NDK_ABIS" | tr ',' ' '`
+    else
+        NDK_ABIS=$NDK_DEFAULT_ABIS
+    fi
 fi
 
 # Normalize of static and shared options.
@@ -769,7 +775,7 @@ build_all()
     build_from_tarball $ICU_URL $ICU_ARCHIVE gzip source $PARALLEL "$BUILD_ICU" "${ICU_OPTIONS[@]}" "$@"
     build_from_tarball $ZLIB_URL $ZLIB_ARCHIVE xz . $PARALLEL "$BUILD_ZLIB" "${ZLIB_OPTIONS[@]}" "$@"
     build_from_tarball $PNG_URL $PNG_ARCHIVE xz . $PARALLEL "$BUILD_PNG" "${PNG_OPTIONS[@]}" "$@"
-# todo: uncomment
+    # todo: uncomment
     build_from_tarball $QRENCODE_URL $QRENCODE_ARCHIVE bzip2 . $PARALLEL "$BUILD_QRENCODE" "${QRENCODE_OPTIONS[@]}" "$@"
     build_from_tarball_boost $BOOST_URL $BOOST_ARCHIVE bzip2 . $PARALLEL "$BUILD_BOOST" "${BOOST_OPTIONS[@]}"
     build_from_github zeromq libzmq master $PARALLEL ${ZMQ_OPTIONS[@]} "$@"
@@ -780,6 +786,10 @@ build_all()
     build_from_github libbitcoin libbitcoin-client master $PARALLEL ${BITCOIN_CLIENT_OPTIONS[@]} "$@"
     build_from_github libbitcoin libbitcoin-network master $PARALLEL ${BITCOIN_NETWORK_OPTIONS[@]} "$@"
     build_from_travis libbitcoin libbitcoin-explorer master $PARALLEL ${BITCOIN_EXPLORER_OPTIONS[@]} "$@"
+
+    if [[ $NDK_DIR ]]; then
+        android_copy_required_libs_for_abis
+    fi
 }
 
 
