@@ -82,12 +82,19 @@ android_api_level_for_abi()
 }
 
 # $1 -- abi
-android_cflags_for_abi()
+android_sysroot_for_abi()
 {
     local abi=$1
     local api_level=$(android_api_level_for_abi $abi)
     local arch=$(android_arch_for_abi $abi)
-    local cflags="-g --sysroot=$NDK_DIR/platforms/android-$api_level/arch-$arch -fPIE -pie"
+    echo "$NDK_DIR/platforms/android-$api_level/arch-$arch"
+}
+
+# $1 -- abi
+android_cflags_for_abi()
+{
+    local abi=$1
+    local cflags="--sysroot=$(android_sysroot_for_abi $abi) -fPIE -pie"
 
     case $abi in
         armeabi-v7a)
@@ -251,21 +258,31 @@ ndk_stl_includes_for_abi()
 }
 
 # $1 -- abi
-ndk_lib_paths_for_abi()
-{
-    # -L$NDK_DIR/sources/icu/$NDK_ICU_VERSION/libs/$abi
-    local libs="-L$(boost_lib_dir_for_abi $abi)"
-    echo $libs
-}
-
-# $1 -- abi
 ndk_stl_lib_path_for_abi()
 {
     local abi=$1
-    local ver=$ANDROID_GCC_VERSION
-    local libs="-L$NDK_DIR/sources/cxx-stl/gnu-libstdc++/$ver/libs/$abi"
-    echo $libs
+    echo "$NDK_DIR/sources/cxx-stl/gnu-libstdc++/$ANDROID_GCC_VERSION/libs/$abi"
 }
+
+# $1 -- abi
+ndk_lib_paths_for_abi()
+{
+    # -L$NDK_DIR/sources/icu/$NDK_ICU_VERSION/libs/$abi
+    echo "-L$(boost_lib_dir_for_abi $abi) -L$(ndk_stl_lib_path_for_abi $abi)"
+}
+
+# $1 -- abi
+cxx_ldflags_for_abi()
+{
+    local abi=$1
+    local ldflags=$(android_ldflags_for_abi $abi)
+    if [[ $abi == arm64-v8a ]]; then
+        ldflags="$ldflags -Wl,-rpath-link,$(boost_lib_dir_for_abi $abi) -Wl,-rpath-link,$(ndk_stl_lib_path_for_abi $abi) -Wl,-rpath-link,$(android_sysroot_for_abi $abi)/usr/lib"
+    fi
+
+    echo $ldflags
+}
+
 
 # $1 -- list of ABIs to build
 # $2 -- configure options
@@ -294,7 +311,7 @@ android_make_current_directory()
         export CPPFLAGS=$cpp_flags
         export CFLAGS="$cpp_flags $(android_cflags_for_abi $abi)"
         export CXXFLAGS="$CFLAGS $(ndk_stl_includes_for_abi $abi)"
-        export LDFLAGS="$(android_ldflags_for_abi $abi) $(ndk_lib_paths_for_abi $abi) $(ndk_stl_lib_path_for_abi $abi) -L$install_dir/lib"
+        export LDFLAGS="$(cxx_ldflags_for_abi $abi) $(ndk_lib_paths_for_abi $abi) -L$install_dir/lib"
         export PKG_CONFIG_PATH="$install_dir/lib/pkgconfig:$PKG_CONFIG_PATH"
         export BOOST_CPPFLAGS="-I$(boost_include_dir_for_abi $abi)"
         export BOOST_LDFLAGS="-L$(boost_lib_dir_for_abi $abi)"

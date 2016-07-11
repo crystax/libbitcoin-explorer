@@ -85,6 +85,7 @@ else
     echo "Unsupported system: $OS"
     exit 1
 fi
+let PARALLEL*=2
 
 # Define operating system specific settings.
 #------------------------------------------------------------------------------
