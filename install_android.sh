@@ -4,7 +4,8 @@
 ANDROID_GCC_VERSION=6
 NDK_ICU_VERSION=56.1
 NDK_BOOST_VERSION=1.61.0
-NDK_DEFAULT_ABIS="armeabi-v7a x86 mips armeabi-v7a-hard arm64-v8a x86_64 mips64"
+#NDK_DEFAULT_ABIS="armeabi-v7a x86 mips armeabi-v7a-hard arm64-v8a x86_64 mips64"
+NDK_DEFAULT_ABIS="arm64-v8a"
 
 
 # $1 -- error message
