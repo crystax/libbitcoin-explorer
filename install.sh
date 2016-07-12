@@ -85,7 +85,6 @@ else
     echo "Unsupported system: $OS"
     exit 1
 fi
-let PARALLEL*=2
 
 # Define operating system specific settings.
 #------------------------------------------------------------------------------
@@ -261,6 +260,14 @@ BOOST_OPTIONS=(
 
 # Define czmq options.
 #------------------------------------------------------------------------------
+if [[ $NDK_DIR ]]; then
+    ZMQ_OPTIONS=(
+    "--without-docs" \
+    "--with-poller=epoll")
+fi
+
+# Define czmq options.
+#------------------------------------------------------------------------------
 CZMQ_OPTIONS=(
 "--disable-zmakecert" \
 "--disable-czmq_selftest" \
@@ -308,7 +315,6 @@ BITCOIN_NETWORK_OPTIONS=(
 BITCOIN_EXPLORER_OPTIONS=(
 "${with_boost}" \
 "${with_pkgconfigdir}")
-
 
 # Define utility functions.
 #==============================================================================
@@ -758,14 +764,15 @@ build_from_travis()
     if [[ $TRAVIS == true ]]; then
         push_directory ".."
         build_from_local "Local $TRAVIS_REPO_SLUG" $JOBS "${OPTIONS[@]}" "$@"
-        make_tests $JOBS
-        pop_directory
     else
         build_from_github $ACCOUNT $REPO $BRANCH $JOBS "${OPTIONS[@]}" "$@"
         push_directory $REPO
-        make_tests $JOBS
-        pop_directory
     fi
+
+    if [[ !($NDK_DIR) ]]; then
+        make_tests $JOBS
+    fi
+    pop_directory
 }
 
 
