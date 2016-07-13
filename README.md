@@ -83,6 +83,49 @@ $ sudo ./install.sh
 ```
 Bitcoin Explorer is now installed in `/usr/local/bin` and can be invoked as `$ bx`.
 
+### Android
+
+Android target is in experimental state and at the moment only arm64-v8a ABI is supported. Also, Android build works only on GNU/Linux hosts, such as Debian/Ubuntu.
+
+To build BX for Android, you first need to install the same dependencies as for GNU/Linux build:
+
+```sh
+$ sudo apt-get install build-essential autoconf automake libtool pkg-config git
+```
+
+Then download CrystaX NDK build #886 (or higher) and unpack it:
+
+```sh
+$ curl -OL https://dl.crystax.net/builds/886/linux/crystax-ndk-10.3.1-b886-linux-x86_64.tar.xz
+$ tar xf crystax-ndk-10.3.1-b886-linux-x86_64.tar.xz
+$ mv crystax-ndk-10.3.1 crystax-ndk-10.3.1-b886
+```
+
+Now, just run `install.sh` with additional parameters:
+
+```sh
+$ ./install.sh --disable-shared --crystax-ndk=/path/to/the/unpacked/crystax-ndk-10.3.1-b886 --crystax-abis=arm64-v8a
+```
+
+When this script finish, you'll find new folder `android/arm64-v8a/bin`, containing `bx` executable as well as its dependencies (shared libraries).
+
+Now plug your Android device by USB, ensure it's visible with `adb devices`, and deploy everything to Android:
+
+```sh
+$ adb shell mkdir -p /data/local/tmp/bx
+$ for f in android/arm64-v8a/bin/*; do adb push $f /data/local/tmp/bx/; done
+$ adb shell 'chmod 0755 /data/local/tmp/bx/*'
+```
+
+Now you can run `bx` command via adb shell:
+
+```sh
+$ adb shell 'LD_LIBRARY_PATH=/data/local/tmp/bx /data/local/tmp/bx/bx help'
+.....
+$ adb shell 'LD_LIBRARY_PATH=/data/local/tmp/bx /data/local/tmp/bx/bx fetch-history 12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S'
+.....
+```
+
 ### Macintosh
 
 The OSX installation differs from Linux in the installation of the compiler and packaged dependencies. BX supports both [Homebrew](http://brew.sh) and [MacPorts](https://www.macports.org) package managers. Both require Apple's [Xcode](https://developer.apple.com/xcode) command line tools. Neither requires Xcode as the tools may be installed independently.
