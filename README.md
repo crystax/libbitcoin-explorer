@@ -93,7 +93,7 @@ To build BX for Android, you first need to install the same dependencies as for 
 $ sudo apt-get install build-essential autoconf automake libtool pkg-config git
 ```
 
-Then download CrystaX NDK build #886 (or higher) and unpack it:
+Then download CrystaX NDK build #886 (or higher) from https://dl.crystax.net/builds/ and unpack it:
 
 ```sh
 $ curl -OL https://dl.crystax.net/builds/886/linux/crystax-ndk-10.3.1-b886-linux-x86_64.tar.xz
